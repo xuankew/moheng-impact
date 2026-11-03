@@ -1,0 +1,30 @@
+server:
+  address: ${MOHENG_BIND_ADDRESS:127.0.0.1}
+  port: ${MOHENG_PORT:8848}
+  shutdown: graceful
+
+spring:
+  application:
+    name: moheng
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          max-age: 0
+
+moheng:
+  workspace-root: ${MOHENG_WORKSPACE_ROOT:}
+  data-dir: ${MOHENG_DATA_DIR:./data}
+  worker-jar: ${MOHENG_WORKER_JAR:}
+  worker-heap: ${MOHENG_WORKER_HEAP:1g}
+  analysis-timeout-seconds: ${MOHENG_ANALYSIS_TIMEOUT_SECONDS:600}
+  demo-repo: ${MOHENG_DEMO_REPO:/workspace/demo}
+
+logging:
+  level:
+    root: INFO
+    io.moheng: INFO

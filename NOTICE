@@ -1,0 +1,59 @@
+墨衡 · 见微 (Moheng Impact)
+Copyright 2026 Moheng contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product includes software developed by third parties. The following
+components are distributed under their respective licenses. Full license
+texts are available from the projects listed below and from the dependency
+metadata in pom.xml and web/package.json.
+
+Java runtime and build
+----------------------
+- Spring Boot, Spring Framework (Apache License 2.0)
+  https://spring.io/projects/spring-boot
+- Flyway Community (Apache License 2.0)
+  https://documentation.red-gate.com/flyway
+- Jackson (Apache License 2.0)
+  https://github.com/FasterXML/jackson
+- Picocli (Apache License 2.0)
+  https://picocli.info
+- SQLite JDBC (Apache License 2.0)
+  https://github.com/xerial/sqlite-jdbc
+- SLF4J (MIT License)
+  https://www.slf4j.org
+- Eclipse JGit (Eclipse Distribution License 1.0 or Eclipse Public License 2.0)
+  https://www.eclipse.org/jgit/
+- Spoon (CeCILL-C or MIT License; this product uses the MIT option)
+  Copyright (c) INRIA, University of Lille, and contributors
+  https://github.com/INRIA/spoon
+- JUnit (Eclipse Public License 2.0, test scope)
+  https://junit.org
+- AssertJ (Apache License 2.0, test scope)
+  https://assertj.github.io/doc/
+
+Web frontend
+------------
+- React and React DOM (MIT License)
+  https://react.dev
+- React Router (MIT License)
+  https://reactrouter.com
+- TanStack Query (MIT License)
+  https://tanstack.com/query
+- XYFlow / React Flow (MIT License)
+  https://reactflow.dev
+- Dagre (MIT License)
+  https://github.com/dagrejs/dagre
+- Lucide (ISC License)
+  https://lucide.dev
+- Vite (MIT License)
+  https://vite.dev
+- TypeScript (Apache License 2.0)
+  https://www.typescriptlang.org
+- Tailwind CSS (MIT License)
+  https://tailwindcss.com
+
+Docker images
+-------------
+The container image also includes Alpine Linux and Eclipse Temurin, which
+carry their own license notices inside the base images.

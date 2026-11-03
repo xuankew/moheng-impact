@@ -1,0 +1,28 @@
+services:
+  moheng:
+    build:
+      context: .
+    image: moheng-impact:0.1.0
+    container_name: moheng
+    init: true
+    ports:
+      - "127.0.0.1:8848:8848"
+    environment:
+      MOHENG_BIND_ADDRESS: 0.0.0.0
+      MOHENG_PORT: "8848"
+      MOHENG_WORKSPACE_ROOT: /workspace
+      MOHENG_DATA_DIR: /data
+      MOHENG_WORKER_JAR: /app/lib/moheng-worker.jar
+      MOHENG_WORKER_HEAP: 1g
+      MOHENG_ANALYSIS_TIMEOUT_SECONDS: "600"
+      MOHENG_DEMO_REPO: /workspace/demo
+    volumes:
+      - moheng-data:/data
+      # 分析自己的仓库时，取消下一行注释并把 MOHENG_WORKSPACE 指向宿主机绝对路径。
+      # 注意：挂载会覆盖镜像内置的 /workspace/demo。
+      # - ${MOHENG_WORKSPACE}:/workspace
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+volumes:
+  moheng-data:

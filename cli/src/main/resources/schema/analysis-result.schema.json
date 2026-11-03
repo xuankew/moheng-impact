@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://moheng.io/schema/analysis-result.schema.json",
+  "title": "Moheng Impact Analysis Result",
+  "type": "object",
+  "required": ["schemaVersion", "analysis", "summary", "changes", "changedSymbols", "apiContractChanges", "apis", "apiImpacts", "impactedMethods", "graph", "risk", "warnings", "stats"],
+  "properties": {
+    "schemaVersion": {"type": "string", "const": "1"},
+    "analysis": {
+      "type": "object",
+      "required": ["repo", "base", "head", "headMode"],
+      "properties": {
+        "repo": {"type": "string"},
+        "base": {"type": "string"},
+        "head": {"type": "string"},
+        "headMode": {"type": "string", "enum": ["WORKTREE", "REV_COMMIT"]},
+        "startedAt": {"type": "string"},
+        "finishedAt": {"type": "string"}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["changedFiles", "changedJavaFiles", "changedSymbols", "impactedMethods", "impactedApis", "riskLevel", "riskScore", "safeMode"],
+      "properties": {
+        "changedFiles": {"type": "integer", "minimum": 0},
+        "changedJavaFiles": {"type": "integer", "minimum": 0},
+        "changedSymbols": {"type": "integer", "minimum": 0},
+        "impactedMethods": {"type": "integer", "minimum": 0},
+        "impactedApis": {"type": "integer", "minimum": 0},
+        "riskLevel": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+        "riskScore": {"type": "integer", "minimum": 0, "maximum": 100},
+        "safeMode": {"type": "boolean"}
+      }
+    },
+    "changes": {"type": "array", "items": {"type": "object"}},
+    "changedSymbols": {"type": "array", "items": {"type": "object"}},
+    "apiContractChanges": {"type": "array", "items": {"type": "object"}},
+    "apis": {"type": "array", "items": {"type": "object"}},
+    "apiImpacts": {"type": "array", "items": {"type": "object"}},
+    "impactedMethods": {"type": "array", "items": {"type": "object"}},
+    "graph": {
+      "type": "object",
+      "properties": {
+        "nodes": {"type": "array", "items": {"type": "object"}},
+        "edges": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "risk": {
+      "type": "object",
+      "required": ["level", "score", "reasons", "safeMode"],
+      "properties": {
+        "level": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+        "reasons": {"type": "array", "items": {"type": "object"}},
+        "safeMode": {
+          "type": "object",
+          "required": ["enabled", "triggers"],
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "triggers": {"type": "array", "items": {"type": "object"}},
+            "recommendation": {"type": "string"}
+          }
+        }
+      }
+    },
+    "warnings": {"type": "array", "items": {"type": "object"}},
+    "stats": {"type": "object"}
+  }
+}

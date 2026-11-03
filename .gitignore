@@ -1,0 +1,41 @@
+# Build output
+target/
+web/dist/
+web/node_modules/
+node_modules/
+*.class
+*.jar
+
+# Runtime data
+data/
+.moheng/
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+# TypeScript
+*.tsbuildinfo
+
+# Local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+id_rsa*
+id_ed25519*
+
+# Package manager cache
+.pnpm-store/
+
+# IDE / OS
+.idea/
+.vscode/
+.project
+.classpath
+.settings/
+*.iml
+.DS_Store
