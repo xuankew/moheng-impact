@@ -90,7 +90,7 @@ mh impact serve     启动本地 Web 服务
 | `--repo <path>` | 仓库路径，默认当前目录 |
 | `--base <rev>` | 基线 revision（分支 / 标签 / SHA），必填 |
 | `--head <rev\|WORKTREE>` | 目标 revision，默认 `WORKTREE` |
-| `--format text\|json` | 输出格式，默认 `text` |
+| `--format text\|json\|markdown` | 输出格式，默认 `text` |
 | `--out <file>` | 输出到文件 |
 | `--max-depth <1-10>` | 反向影响最大深度，默认 `5` |
 | `--api-prefix <path>` | 运行时 API 前缀 |
@@ -103,10 +103,28 @@ mh impact serve     启动本地 Web 服务
 | `--timeout <seconds>` | worker 超时，默认 `600` |
 | `--json-schema` | 打印结果 JSON Schema |
 | `--no-save` | 不写入 `<repo>/.moheng/runs` |
+| `--gitlab-comment` | 将摘要写入 MR 评论（需 GitLab MR 流水线） |
 
 `.moheng.yml` 由 `impact init` 生成，可配置 `repo`、`base`、`head`、`maxDepth`、`apiPrefix`、`includePackages`、`excludePackages`、`includeTests`、`highConfidenceOnly`、`javaVersion`、`risk.failOn`、`output.format`。命令行参数优先于配置文件。
 
 退出码：`0` 成功，`2` 用法错误，`3` 仓库错误，`4` 分析失败，`5` 达到风险阈值，`6` worker 不可用。
+
+## GitLab CI 门禁与 MR 评论
+
+在 GitLab Merge Request 流水线中运行时，CLI 会自动读取 `CI_PROJECT_DIR`、`CI_MERGE_REQUEST_DIFF_BASE_SHA`（缺失时用 `CI_COMMIT_BEFORE_SHA`）和 `CI_COMMIT_SHA`，无需再传 `--repo`、`--base`、`--head`。加上 `--gitlab-comment` 后，结果会写入当前 MR 评论：
+
+```sh
+java -jar moheng-cli.jar impact analyze \
+  --format markdown --out moheng-impact.md --no-save \
+  --fail-on-risk HIGH --gitlab-comment
+```
+
+- 评论带固定标记 `<!-- moheng-impact -->`，同一 MR 重复运行会更新原评论，不会重复刷屏。
+- 需要 masked 的 CI/CD 变量 `MOHENG_GITLAB_TOKEN`（或 `GITLAB_TOKEN`），项目访问令牌权限选 `api`，角色至少 Developer。
+- 评论写入失败只告警，不影响分析结论；`--fail-on-risk` 触发的退出码 `5` 仍然生效，从而阻断流水线。
+- 流水线需设置 `GIT_DEPTH: "0"`，浅克隆缺少基线提交会导致 diff 失败。
+
+直接可用模板见 [`ci/gitlab/moheng-impact.gitlab-ci.yml`](ci/gitlab/moheng-impact.gitlab-ci.yml)：仅在 MR 流水线运行，上传 `moheng-impact.md` 产物，并按 `MOHENG_FAIL_ON_RISK` 阻断。模板通过 `MOHENG_CLI_JAR`、`MOHENG_WORKER_JAR` 指向 runner 上的 jar；使用容器执行器时取消 `image:` 注释并替换为已发布镜像。
 
 ## Docker
 

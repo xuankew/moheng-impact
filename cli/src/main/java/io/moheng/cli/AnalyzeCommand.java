@@ -30,7 +30,7 @@ final class AnalyzeCommand implements Callable<Integer> {
     @Option(names = "--head", paramLabel = "<rev|WORKTREE>", description = "目标 revision，默认 WORKTREE")
     private String headOption;
 
-    @Option(names = "--format", paramLabel = "text|json", description = "输出格式")
+    @Option(names = "--format", paramLabel = "text|json|markdown", description = "输出格式")
     private String formatOption;
 
     @Option(names = "--out", paramLabel = "<file>", description = "输出到文件")
@@ -77,20 +77,28 @@ final class AnalyzeCommand implements Callable<Integer> {
     @Option(names = "--no-save", description = "不写入 <repo>/.moheng/runs")
     private boolean noSave;
 
+    @Option(names = "--gitlab-comment", description = "将摘要写入 GitLab MR 评论（需 MR 流水线与 MOHENG_GITLAB_TOKEN）")
+    private boolean gitlabComment;
+
     @Override
     public Integer call() {
         if (jsonSchema) {
             System.out.print(readSchema());
             return ExitCodes.OK;
         }
-        Path repo = resolveRepo();
+        GitLabCi gitlab = GitLabCi.detect(System.getenv());
+        if (gitlabComment) {
+            validateGitLabComment(gitlab);
+        }
+        Path repo = resolveRepo(gitlab.repo());
         ConfigFile config = ConfigFile.load(repo);
 
-        String base = firstNonBlank(baseOption, config.string("base"));
+        String base = firstNonBlank(baseOption, gitlab.base(), config.string("base"));
         if (base == null) {
-            throw new CliException(ExitCodes.USAGE, "缺少 --base（或在 .moheng.yml 中配置 base）");
+            throw new CliException(ExitCodes.USAGE,
+                    "缺少 --base（或在 .moheng.yml 中配置 base，或在 GitLab MR 流水线中运行）");
         }
-        String head = firstNonBlank(headOption, config.string("head"));
+        String head = firstNonBlank(headOption, gitlab.head(), config.string("head"));
         String format = normalizeFormat(firstNonBlank(formatOption, config.string("output", "format")));
         String failOnRisk = normalizeRisk(firstNonBlank(failOnRiskOption, config.string("risk", "failOn")));
 
@@ -121,7 +129,11 @@ final class AnalyzeCommand implements Callable<Integer> {
                 Duration.ofSeconds(Math.max(timeoutSeconds, 1)), workerJarOption);
         Path saved = noSave ? null : RunStore.save(repo, runId, result);
 
-        String output = "json".equals(format) ? JsonOutput.render(result) : TextReport.render(result);
+        String output = switch (format) {
+            case "json" -> JsonOutput.render(result);
+            case "markdown" -> MarkdownReport.render(result);
+            default -> TextReport.render(result);
+        };
         if (outOption != null) {
             Path target = outOption.toAbsolutePath().normalize();
             try {
@@ -139,6 +151,9 @@ final class AnalyzeCommand implements Callable<Integer> {
         if (saved != null) {
             System.err.println("分析记录: " + saved);
         }
+        if (gitlabComment) {
+            postMergeRequestComment(gitlab, result);
+        }
 
         if (failOnRisk != null && severity(result.risk().level()) >= severity(failOnRisk)) {
             return ExitCodes.RISK_THRESHOLD;
@@ -146,14 +161,20 @@ final class AnalyzeCommand implements Callable<Integer> {
         return ExitCodes.OK;
     }
 
-    private Path resolveRepo() {
+    private Path resolveRepo(Path gitlabRepo) {
         Path repo;
         if (repoOption != null) {
             repo = repoOption;
         } else {
             ConfigFile cwdConfig = ConfigFile.load(Path.of(".").toAbsolutePath().normalize());
             String configured = cwdConfig.string("repo");
-            repo = configured == null ? Path.of(".") : cwdConfig.directory().resolve(configured);
+            if (configured != null) {
+                repo = cwdConfig.directory().resolve(configured);
+            } else if (gitlabRepo != null && Files.isDirectory(gitlabRepo)) {
+                repo = gitlabRepo;
+            } else {
+                repo = Path.of(".");
+            }
         }
         repo = repo.toAbsolutePath().normalize();
         if (!Files.isDirectory(repo)) {
@@ -162,11 +183,13 @@ final class AnalyzeCommand implements Callable<Integer> {
         return repo;
     }
 
-    private static String firstNonBlank(String first, String second) {
-        if (first != null && !first.isBlank()) {
-            return first;
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
         }
-        return second == null || second.isBlank() ? null : second;
+        return null;
     }
 
     private static String normalizeFormat(String format) {
@@ -174,10 +197,34 @@ final class AnalyzeCommand implements Callable<Integer> {
             return "text";
         }
         String value = format.toLowerCase(Locale.ROOT);
-        if (!value.equals("text") && !value.equals("json")) {
-            throw new CliException(ExitCodes.USAGE, "无效的输出格式: " + format + "（可选 text/json）");
+        if (!value.equals("text") && !value.equals("json") && !value.equals("markdown")) {
+            throw new CliException(ExitCodes.USAGE, "无效的输出格式: " + format + "（可选 text/json/markdown）");
         }
         return value;
+    }
+
+    private static void validateGitLabComment(GitLabCi gitlab) {
+        if (!gitlab.hasMergeRequest()) {
+            throw new CliException(ExitCodes.USAGE,
+                    "--gitlab-comment 需要在 GitLab Merge Request 流水线中运行"
+                            + "（缺少 CI_API_V4_URL / CI_PROJECT_ID / CI_MERGE_REQUEST_IID）");
+        }
+        if (gitlab.token() == null || gitlab.token().isBlank()) {
+            throw new CliException(ExitCodes.USAGE,
+                    "--gitlab-comment 需要 GitLab 令牌（MOHENG_GITLAB_TOKEN 或 GITLAB_TOKEN，需 api 权限）");
+        }
+    }
+
+    private static void postMergeRequestComment(GitLabCi gitlab, AnalysisResult result) {
+        try {
+            GitLabClient.NoteResult note = new GitLabClient(gitlab.apiUrl(), gitlab.token())
+                    .upsertMergeRequestNote(gitlab.projectId(), gitlab.mergeRequestIid(),
+                            MarkdownReport.render(result));
+            System.err.println((note.created() ? "已创建" : "已更新")
+                    + " MR !" + gitlab.mergeRequestIid() + " 影响分析评论（note " + note.noteId() + "）");
+        } catch (GitLabClient.GitLabException e) {
+            System.err.println("警告: MR 评论写入失败: " + e.getMessage());
+        }
     }
 
     private static String normalizeRisk(String level) {

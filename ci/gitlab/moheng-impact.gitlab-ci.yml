@@ -1,0 +1,45 @@
+# 墨衡·见微 GitLab MR 门禁模板
+#
+# 用法：
+#   1. 把本文件复制到业务仓库（如 .gitlab/moheng-impact.yml），或由内部镜像仓库
+#      通过 include:project 引用。
+#   2. 在 CI/CD Variables 中配置 MOHENG_CLI_JAR、MOHENG_WORKER_JAR 指向 runner
+#      上可访问的 jar；MOHENG_GITLAB_TOKEN 配置为 masked 的项目访问令牌（api 权限）。
+#   3. 在 .gitlab-ci.yml 中加入：
+#        include:
+#          - local: .gitlab/moheng-impact.yml
+#
+# 仅在 Merge Request 流水线运行。分析结果写入 MR 评论（同一 MR 重复运行会更新
+# 同一条评论），并上传 Markdown 报告作为流水线产物。
+
+variables:
+  # runner 上的 jar 路径；容器执行器可改为镜像内路径，并取消下方 image 注释
+  MOHENG_CLI_JAR: "/opt/moheng/moheng-cli.jar"
+  MOHENG_WORKER_JAR: "/opt/moheng/moheng-worker.jar"
+  # 达到该风险等级时任务失败（LOW / MEDIUM / HIGH / CRITICAL）
+  MOHENG_FAIL_ON_RISK: "HIGH"
+  # 影响分析需要 base 与 head 两个提交，浅克隆会导致 diff 失败
+  GIT_DEPTH: "0"
+
+moheng-impact:
+  # 使用容器执行器时取消注释，并换成实际发布的镜像
+  # image: registry.example.com/moheng/moheng-cli:0.1.0
+  stage: test
+  timeout: 30 minutes
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - test -f "$MOHENG_CLI_JAR" || { echo "未找到 MOHENG_CLI_JAR: $MOHENG_CLI_JAR"; exit 2; }
+    - test -f "$MOHENG_WORKER_JAR" || { echo "未找到 MOHENG_WORKER_JAR: $MOHENG_WORKER_JAR"; exit 2; }
+    - |
+      java -jar "$MOHENG_CLI_JAR" impact analyze \
+        --format markdown \
+        --out moheng-impact.md \
+        --no-save \
+        --fail-on-risk "$MOHENG_FAIL_ON_RISK" \
+        --gitlab-comment
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - moheng-impact.md
