@@ -257,7 +257,18 @@ export function AnalysisOverview() {
           </Card>
 
           <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-            <Stat label="变更文件" value={result.data.summary.changedFiles} hint={`Java ${result.data.summary.changedJavaFiles}`} />
+            <Link
+              to={`/analyses/${analysisId}/changes`}
+              aria-label="查看变更文件清单"
+              className="group block rounded-xl outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 focus-visible:ring-offset-2"
+            >
+              <Stat
+                className="h-full transition group-hover:border-indigo-300 group-hover:shadow-sm"
+                label="变更文件"
+                value={result.data.summary.changedFiles}
+                hint={`Java ${result.data.summary.changedJavaFiles}`}
+              />
+            </Link>
             <Stat label="变更符号" value={result.data.summary.changedSymbols} />
             <Stat label="受影响方法" value={result.data.summary.impactedMethods} />
             <Stat label="受影响 API" value={result.data.summary.impactedApis} />

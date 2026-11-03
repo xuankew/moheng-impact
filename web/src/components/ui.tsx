@@ -258,11 +258,13 @@ export function Stat({
   value,
   hint,
   tone,
+  className,
 }: {
   label: ReactNode
   value: ReactNode
   hint?: ReactNode
   tone?: 'danger' | 'warning' | 'success'
+  className?: string
 }) {
   const tones = {
     danger: 'text-rose-600',
@@ -270,7 +272,7 @@ export function Stat({
     success: 'text-emerald-600',
   }
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3">
+    <div className={cn('rounded-xl border border-slate-200/80 bg-white px-4 py-3', className)}>
       <div className="text-[11px] font-medium tracking-wide text-slate-500">{label}</div>
       <div className={cn('mt-1.5 text-2xl font-semibold tracking-tight text-slate-900', tone && tones[tone])}>
         {value}
