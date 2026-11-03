@@ -18,7 +18,7 @@ usage() {
   --rebuild   强制重新构建 Java 模块
 
 可用环境变量:
-  MOHENG_WORKSPACE_ROOT   允许分析的仓库根目录（默认：项目根目录）
+  MOHENG_WORKSPACE_ROOT   目录浏览与相对路径的起点（默认：项目根目录；绝对路径不受限）
   MOHENG_DATA_DIR         数据与 SQLite 目录（默认：<项目>/data）
   MOHENG_DEMO_REPO        演示仓库路径（默认：<项目>/target/demo-repo）
   MOHENG_WORKER_HEAP      worker 堆上限（默认：1g）
@@ -80,6 +80,35 @@ check_port() {
     fi
 }
 
+server_pids() {
+    local pid stat
+    for pid in $(pgrep -f "moheng-server[.]jar" 2>/dev/null || true); do
+        stat="$(ps -p "$pid" -o stat= 2>/dev/null | tr -d '[:space:]')"
+        [ -n "$stat" ] || continue
+        case "$stat" in
+            Z*) continue ;;
+        esac
+        echo "$pid"
+    done
+}
+
+# 端口已释放时旧 JVM 仍可能在跑关闭钩子；此时替换 jar 会让钩子里的
+# logback 懒加载类找不到，因此构建前必须等进程真正退出。
+wait_server_gone() {
+    local pids i
+    for i in $(seq 1 20); do
+        pids="$(server_pids)"
+        if [ -z "$pids" ]; then
+            return 0
+        fi
+        if [ "$i" -eq 1 ]; then
+            echo "==> 等待旧后端进程退出（PID: $pids）"
+        fi
+        sleep 1
+    done
+    die "moheng-server 仍在运行（PID: $(server_pids)），已中止构建以免覆盖使用中的 jar"
+}
+
 ensure_web_deps() {
     command -v pnpm >/dev/null 2>&1 || die "未找到 pnpm，请先安装（npm install -g pnpm）"
     if [ ! -d web/node_modules ]; then
@@ -98,6 +127,7 @@ ensure_java_build() {
     fi
     if [ "$need" -eq 1 ]; then
         command -v mvn >/dev/null 2>&1 || die "未找到 Maven，请先安装 Maven 3.9+"
+        wait_server_gone
         echo "==> 构建 Java 模块（跳过测试）"
         mkdir -p web/dist
         mvn -B -DskipTests package
@@ -136,7 +166,7 @@ start_backend() {
     echo "==> 等待后端就绪 http://127.0.0.1:8848"
     local i
     for i in $(seq 1 60); do
-        if curl -fsS http://127.0.0.1:8848/api/health >/dev/null 2>&1; then
+        if curl -fsS --max-time 2 http://127.0.0.1:8848/api/health >/dev/null 2>&1; then
             return 0
         fi
         if ! kill -0 "$SERVER_PID" 2>/dev/null; then
@@ -210,35 +240,53 @@ prepare_demo
 ensure_web_deps
 
 if [ "$MODE" = "prod" ]; then
+    check_port 8848
+    wait_server_gone
     echo "==> 构建前端"
     pnpm --dir web build
     echo "==> 打包后端（包含前端静态资源）"
     command -v mvn >/dev/null 2>&1 || die "未找到 Maven，请先安装 Maven 3.9+"
     mvn -B -DskipTests package
-    check_port 8848
     start_backend || exit 1
     cat <<EOF
 
 墨衡·见微已启动（生产模式）
-  界面:   http://127.0.0.1:8848
-  健康:   http://127.0.0.1:8848/api/health
+  前端地址: http://127.0.0.1:8848
+  健康检查: http://127.0.0.1:8848/api/health
   数据:   ${MOHENG_DATA_DIR}
   演示库: ${DEMO_REPO}
 按 Ctrl+C 停止。
 EOF
 else
-    ensure_java_build
     check_port 8848
     check_port 5173
+    ensure_java_build
     start_backend || exit 1
     echo "==> 启动前端开发服务器 http://127.0.0.1:5173"
     pnpm --dir web dev --host 127.0.0.1 &
     WEB_PID=$!
+    echo "==> 等待前端就绪 http://127.0.0.1:5173"
+    ready=0
+    for i in $(seq 1 30); do
+        if curl -fsS --max-time 2 http://127.0.0.1:5173/ >/dev/null 2>&1; then
+            ready=1
+            break
+        fi
+        if ! kill -0 "$WEB_PID" 2>/dev/null; then
+            echo "前端进程已退出，请检查上方日志" >&2
+            exit 1
+        fi
+        sleep 1
+    done
+    if [ "$ready" -ne 1 ]; then
+        echo "前端在 30 秒内未就绪" >&2
+        exit 1
+    fi
     cat <<EOF
 
 墨衡·见微已启动（开发模式）
-  界面:   http://127.0.0.1:5173
-  后端:   http://127.0.0.1:8848
+  前端地址: http://127.0.0.1:5173
+  后端地址: http://127.0.0.1:8848
   数据:   ${MOHENG_DATA_DIR}
   演示库: ${DEMO_REPO}
 按 Ctrl+C 停止。

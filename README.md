@@ -57,13 +57,15 @@ worker jar 会自动从 `worker/target/moheng-worker.jar` 查找；安装到其�
 ./start.sh            # 开发模式：后端 8848 + 前端 5173（热更新）
 ./start.sh --prod     # 生产模式：构建前端并打入后端，单端口 8848
 ./start.sh --rebuild  # 强制重新构建 Java 模块
+./restart.sh          # 停止并重启（默认重新构建，确保代码改动生效）
+./restart.sh --prod   # 以生产模式重启
 ```
 
 首次运行会自动安装前端依赖、构建缺失的 Java 产物，并在 `target/demo-repo` 创建演示仓库。脚本会自动选择 JDK 21，也可通过 `JAVA_HOME` 指定。
 
 ## 使用内网 / 私有仓库
 
-服务只允许访问 `MOHENG_WORKSPACE_ROOT` 下的目录。把仓库放在该目录内，然后在 Web 端「新建项目」选择目录，或直接用 CLI：
+在 Web 端「添加项目」时可直接填写任意本地 Git 仓库的绝对路径；`MOHENG_WORKSPACE_ROOT` 只决定「浏览」的起始目录和相对路径的解析基准。也可以直接用 CLI：
 
 ```sh
 java -jar cli/target/moheng-cli.jar impact analyze \
@@ -114,7 +116,7 @@ docker compose up --build -d
 
 默认仅绑定 `127.0.0.1:8848`，数据持久化在 `moheng-data` 卷。镜像内置 `/workspace/demo`，启动后可直接分析。
 
-分析宿主机上的仓库时，挂载工作区（会覆盖内置演示仓库）：
+分析宿主机上的仓库时，挂载工作区（会覆盖内置演示仓库）。容器只能看到挂载进来的目录，因此 Docker 模式下仍需把目标仓库或其父目录挂到 `/workspace`：
 
 ```sh
 MOHENG_WORKSPACE=/path/to/repos docker compose up --build -d
@@ -140,7 +142,7 @@ docker run -d --name moheng \
 | --- | --- | --- |
 | `MOHENG_BIND_ADDRESS` | `127.0.0.1` | 监听地址（容器内为 `0.0.0.0`） |
 | `MOHENG_PORT` | `8848` | 监听端口 |
-| `MOHENG_WORKSPACE_ROOT` | 进程工作目录 | 允许访问的仓库根目录 |
+| `MOHENG_WORKSPACE_ROOT` | 进程工作目录 | 目录浏览与相对路径的起点（绝对路径不受限） |
 | `MOHENG_DATA_DIR` | `./data` | SQLite、临时文件目录 |
 | `MOHENG_WORKER_JAR` | 自动查找 | worker jar 路径 |
 | `MOHENG_WORKER_HEAP` | `1g` | worker JVM 堆上限 |
