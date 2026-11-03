@@ -75,7 +75,7 @@ export function Dashboard() {
           <EmptyState
             icon={<FolderGit2 className="h-6 w-6" />}
             title="还没有登记项目"
-            description="添加一个工作区内的 Git 仓库，首次分析只需选择 base 与 head。"
+            description="添加一个本地 Git 仓库，首次分析只需选择 base 与 head。"
             action={
               <Link to="/projects">
                 <Button variant="primary">

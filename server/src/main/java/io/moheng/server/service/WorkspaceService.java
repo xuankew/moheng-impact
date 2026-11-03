@@ -73,13 +73,13 @@ public class WorkspaceService {
         if (repoPath == null || repoPath.isBlank()) {
             throw ApiException.invalid("repoPath 不能为空");
         }
-        Path candidate = Path.of(repoPath);
-        Path resolved = candidate.isAbsolute()
+        Path candidate = Path.of(repoPath.trim());
+        boolean absolute = candidate.isAbsolute();
+        Path resolved = absolute
                 ? candidate.normalize()
                 : root().resolve(candidate).normalize();
-        Path canonicalRoot = realPath(root());
         Path real = realPath(resolved);
-        if (!real.startsWith(canonicalRoot)) {
+        if (!absolute && !real.startsWith(realPath(root()))) {
             throw ApiException.outsideWorkspace(repoPath);
         }
         if (!Files.isDirectory(real)) {

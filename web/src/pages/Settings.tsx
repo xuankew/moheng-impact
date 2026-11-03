@@ -30,7 +30,7 @@ function Dot({ ok }: { ok: boolean }) {
 }
 
 const configRows: [string, string][] = [
-  ['MOHENG_WORKSPACE_ROOT', '允许分析的工作区根目录'],
+  ['MOHENG_WORKSPACE_ROOT', '目录浏览与相对路径的起点（绝对路径不受限）'],
   ['MOHENG_DATA_DIR', 'SQLite 与临时文件目录'],
   ['MOHENG_WORKER_JAR', 'worker jar 路径（默认自动定位）'],
   ['MOHENG_WORKER_HEAP', 'worker 最大堆，默认 1g'],

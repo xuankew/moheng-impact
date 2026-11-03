@@ -130,7 +130,7 @@ export function Projects() {
     <div>
       <PageHeader
         title="项目"
-        description="登记工作区内的 Git 仓库。墨衡只读分析，不会向仓库写入任何内容。"
+        description="登记本地 Git 仓库。墨衡只读分析，不会向仓库写入任何内容。"
         actions={
           <Button variant="primary" onClick={() => setEditing('new')}>
             <Plus className="h-4 w-4" />
@@ -151,7 +151,7 @@ export function Projects() {
           <EmptyState
             icon={<FolderGit2 className="h-6 w-6" />}
             title="还没有项目"
-            description="从工作区目录中选择一个 Git 仓库，或手动填写仓库路径。"
+            description="从工作区目录选择，或直接填写任意本地 Git 仓库的绝对路径。"
             action={
               <Button variant="primary" onClick={() => setEditing('new')}>
                 <Plus className="h-4 w-4" />
@@ -223,7 +223,7 @@ export function Projects() {
       <Drawer
         open={editing !== null}
         title={editing === 'new' ? '添加项目' : '编辑项目'}
-        description="仓库路径必须位于工作区内，并且包含 .git。"
+        description="填写本地 Git 仓库的绝对路径，目录需包含 .git。墨衡只读分析，不会修改仓库。"
         onClose={() => setEditing(null)}
       >
         <div className="space-y-4">
@@ -234,7 +234,7 @@ export function Projects() {
               <Input
                 value={form.repoPath}
                 onChange={update('repoPath')}
-                placeholder="/workspace/order-service"
+                placeholder="/Users/you/code/order-service"
                 className="font-mono text-xs"
               />
               <Button
